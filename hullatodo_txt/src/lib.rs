@@ -6,13 +6,13 @@ extern crate pest_derive;
 mod tests {
     use super::*;
     #[test]
-    fn parse_empty() {
+    fn empty() {
         let todos = parse("");
         assert_eq!(0, todos.len());
     }
 
     #[test]
-    fn parse_simplest() {
+    fn simplest() {
         let todos = parse("this is a todo");
         assert_eq!(1, todos.len());
         assert_eq!("this is a todo", todos[0].text);
@@ -20,29 +20,53 @@ mod tests {
     }
 
     #[test]
-    fn parse_simple_complete() {
+    fn completeness() {
         let todos = parse("x this is a todo");
         assert_eq!(1, todos.len());
         assert_eq!("this is a todo", todos[0].text);
         assert_eq!(true, todos[0].is_completed);
+
+        let todos = parse("xylophone lesson");
+        assert_eq!(1, todos.len());
+        assert_eq!("xylophone lesson", todos[0].text);
+        assert_eq!(false, todos[0].is_completed);
+
+        let todos = parse("X 2012-01-01 Make resolutions");
+        assert_eq!(1, todos.len());
+        assert_eq!("X 2012-01-01 Make resolutions", todos[0].text);
+        assert_eq!(false, todos[0].is_completed);
+
+        let todos = parse("(A) x Find ticket prices");
+        assert_eq!(1, todos.len());
+        assert_eq!("x Find ticket prices", todos[0].text);
+        assert_eq!(false, todos[0].is_completed);
     }
 
     #[test]
-    fn parse_simple_priority() {
-        let todos = parse("(A) this is a todo");
-        assert_eq!(1, todos.len());
-        assert_eq!("this is a todo", todos[0].text);
-        assert_eq!(0, todos[0].priority);
+    fn priority() {
+        let todos = parse("(A) this has the highest priority");
+        assert_eq!("this has the highest priority", todos[0].text);
+        assert_eq!(Some(0), todos[0].priority);
 
-        let todos = parse("(Z) this is a todo");
-        assert_eq!(1, todos.len());
-        assert_eq!("this is a todo", todos[0].text);
-        assert_eq!(25, todos[0].priority);
+        let todos = parse("(Z) this has the lowest priority");
+        assert_eq!("this has the lowest priority", todos[0].text);
+        assert_eq!(Some(25), todos[0].priority);
 
         let todos = parse("(+) this is a todo");
-        assert_eq!(1, todos.len());
         assert_eq!("(+) this is a todo", todos[0].text);
-        assert_eq!(0, todos[0].priority);
+        assert_eq!(None, todos[0].priority);
+
+        let todos = parse("Really gotta call Mom (A) @phone @someday");
+        assert_eq!("Really gotta call Mom (A) @phone @someday", todos[0].text);
+        assert_eq!(None, todos[0].priority);
+
+        let todos = parse("(b) Get back to the boss");
+        assert_eq!("(b) Get back to the boss", todos[0].text);
+        assert_eq!(None, todos[0].priority);
+
+        let todos = parse("(B)->Submit TPS report");
+        assert_eq!("(B)->Submit TPS report", todos[0].text);
+        assert_eq!(None, todos[0].priority);
     }
 }
 
@@ -58,7 +82,7 @@ pub struct Date(u16, u8, u8);
 #[derive(Default)]
 pub struct Todo<'a> {
     pub is_completed: bool,
-    pub priority: u8,
+    pub priority: Option<u8>,
     pub date_creation: Date,
     pub date_completed: Date,
     pub text: &'a str,
@@ -98,7 +122,7 @@ fn parse_entry(entry: pest::iterators::Pair<Rule>) -> Option<Todo> {
             Rule::priority_value => {
                 let value_char = field.as_str().chars().next().unwrap();
                 if value_char.is_ascii_uppercase() {
-                    todo.priority = value_char as u8 - 'A' as u8;
+                    todo.priority = Some(value_char as u8 - 'A' as u8);
                 }
             }
             Rule::date_creation => {

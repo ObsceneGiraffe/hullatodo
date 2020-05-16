@@ -1,17 +1,15 @@
-WHITESPACE = _{ " " }
-
-complete_flag = { "x" }
+complete_flag = { "x" ~ WHITE_SPACE }
 priority_value = { UPPERCASE } 
-priority = _{ "(" ~ priority_value ~ ")" }
+priority = _{ "(" ~ priority_value ~ ")" ~ WHITE_SPACE }
 
 year = { ASCII_DIGIT{4} }
 month = { ASCII_DIGIT{2} }
 day = { ASCII_DIGIT{2} }
 date_sep = { "-" }
-date = { year ~ date_sep ~ month ~ date_sep ~ day }
+date = { year ~ date_sep ~ month ~ date_sep ~ day}
 
-date_creation = _{ date }
-date_completed = _{ date }
+date_creation = _{ date ~ WHITE_SPACE }
+date_completed = _{ date ~ WHITE_SPACE }
 
 char = { !("\n") ~ ANY }
 tail = @{ char* }
