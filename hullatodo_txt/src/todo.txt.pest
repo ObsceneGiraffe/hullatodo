@@ -1,15 +1,19 @@
-complete_flag = { "x" ~ WHITE_SPACE }
-priority_value = { UPPERCASE } 
-priority = _{ "(" ~ priority_value ~ ")" ~ WHITE_SPACE }
+main = _{SOI ~ entry_list ~ EOI }
+entry_list = { entry ~ (NEWLINE ~ entry)* }
+entry = { complete_flag? ~ priority? ~ date_completed? ~ date_creation? ~ tail}
 
+complete_flag = { "x" ~ WHITE_SPACE }
+priority = _{ "(" ~ priority_value ~ ")" ~ WHITE_SPACE }
+priority_value = { UPPERCASE }
+
+date_creation = { date ~ WHITE_SPACE }
+date_completed = { date ~ WHITE_SPACE }
+
+date = _{ year ~ date_sep ~ month ~ date_sep ~ day}
 year = { ASCII_DIGIT{4} }
 month = { ASCII_DIGIT{2} }
 day = { ASCII_DIGIT{2} }
-date_sep = { "-" }
-date = { year ~ date_sep ~ month ~ date_sep ~ day}
-
-date_creation = _{ date ~ WHITE_SPACE }
-date_completed = _{ date ~ WHITE_SPACE }
+date_sep = _{ "-" }
 
 tail = { span? ~ inner* }
 inner = _{ (context_tag | project_tag | span) }
@@ -19,8 +23,3 @@ project_tag_prefix = @{ WHITE_SPACE ~ "+" }
 context_tag = @{ context_tag_prefix ~ tag_char+ }
 project_tag = @{ project_tag_prefix ~ tag_char+ }
 tag_char = { !(WHITE_SPACE) ~ ANY }
-
-entry = { complete_flag? ~ priority? ~ date_creation? ~ date_completed? ~ tail}
-entry_list = { entry ~ (NEWLINE ~ entry)* }
-
-main = _{SOI ~ entry_list ~ EOI }

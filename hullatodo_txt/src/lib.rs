@@ -93,6 +93,23 @@ mod tests {
         assert_eq!(1, todos[0].context_tags.len());
         assert_eq!("ハラトド", todos[0].context_tags[0]);
     }
+
+    #[test]
+    fn dates() {
+        let todos = parse("This is a todo without any dates");
+        assert_eq!("This is a todo without any dates", todos[0].text);
+        assert_eq!(None, todos[0].date_completed);
+        assert_eq!(None, todos[0].date_creation);
+
+        let todos = parse("2020-05-16 This is a todo with a completion date");
+        assert_eq!("This is a todo with a completion date", todos[0].text);
+        assert_eq!(Some(Date(2020, 5, 16)), todos[0].date_completed);
+
+        let todos = parse("2020-05-16 2020-04-12 This is a todo with a completion and creation date");
+        assert_eq!("This is a todo with a completion and creation date", todos[0].text);
+        assert_eq!(Some(Date(2020, 5, 16)), todos[0].date_completed);
+        assert_eq!(Some(Date(2020, 4, 12)), todos[0].date_creation);
+    }
 }
 
 use pest::Parser;
@@ -103,18 +120,18 @@ mod todotxt {
     pub struct Parser;
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct Date(u16, u8, u8);
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct PairTag<'a>(&'a str, &'a str);
 
 #[derive(Default)]
 pub struct Todo<'a> {
     pub is_completed: bool,
     pub priority: Option<u8>,
-    pub date_creation: Date,
-    pub date_completed: Date,
+    pub date_creation: Option<Date>,
+    pub date_completed: Option<Date>,
     pub text: &'a str,
     pub context_tags: Vec<&'a str>,
     pub project_tags: Vec<&'a str>,
@@ -136,9 +153,9 @@ pub fn parse(text: &str) -> Vec<Todo> {
     return result;
 }
 
-fn parse_entry(entry: pest::iterators::Pair<todotxt::Rule>) -> Option<Todo> {
+fn parse_entry(entry_pair: pest::iterators::Pair<todotxt::Rule>) -> Option<Todo> {
     let mut todo: Todo = Default::default();
-    for entry_inner in entry.into_inner() {
+    for entry_inner in entry_pair.into_inner() {
         match entry_inner.as_rule() {
             todotxt::Rule::complete_flag => {
                 todo.is_completed = !entry_inner.as_str().is_empty();
@@ -150,12 +167,10 @@ fn parse_entry(entry: pest::iterators::Pair<todotxt::Rule>) -> Option<Todo> {
                 }
             }
             todotxt::Rule::date_creation => {
-                println!("{:?}", entry_inner.as_str());
-                todo.date_creation = Default::default();
+                todo.date_creation = as_date(entry_inner);
             }
             todotxt::Rule::date_completed => {
-                println!("{:?}", entry_inner.as_str());
-                todo.date_completed = Default::default();
+                todo.date_completed = as_date(entry_inner);
             }
             todotxt::Rule::tail => {
                 todo.text = entry_inner.as_str();
@@ -181,4 +196,12 @@ fn parse_entry(entry: pest::iterators::Pair<todotxt::Rule>) -> Option<Todo> {
     }
 
     if todo.text.is_empty() { None } else { Some(todo) }
+}
+
+fn as_date(date_pair: pest::iterators::Pair<todotxt::Rule>) -> Option<Date> {
+    let mut inner = date_pair.into_inner();
+    let year = inner.next().unwrap().as_str().parse::<u16>().unwrap();
+    let month = inner.next().unwrap().as_str().parse::<u8>().unwrap();
+    let day = inner.next().unwrap().as_str().parse::<u8>().unwrap();
+    Some(Date(year, month, day))
 }
