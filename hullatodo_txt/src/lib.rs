@@ -22,7 +22,7 @@ mod tests {
     #[test]
     fn todo_list() {
         let todos = parse(
-            "this is the first todo\
+            "this is the first todo\n\
             this is the second todo"
         );
         assert_eq!(2, todos.len());
@@ -30,8 +30,8 @@ mod tests {
         assert_eq!("this is the second todo", todos[1].text);
 
         let todos = parse(
-            "this is the first todo\
-            x 2020-05-17 this is the @second todo\
+            "this is the first todo\n\
+            x 2020-05-17 this is the @second todo\n\
             2020-05-18 this is the +third todo");
         
         assert_eq!(3, todos.len());
@@ -133,6 +133,44 @@ mod tests {
     }
 
     #[test]
+    fn pairs() {
+        let todos = parse("not-a-pair:this-is-just-text");
+        assert_eq!(1, todos.len());
+        assert_eq!("not-a-pair:this-is-just-text", todos[0].text);
+        assert_eq!(0, todos[0].pair_tags.len());
+
+        let todos = parse("message pair-key:pair-value");
+        assert_eq!(1, todos.len());
+        assert_eq!("message pair-key:pair-value", todos[0].text);
+        assert_eq!(1, todos[0].pair_tags.len());
+        assert_eq!("pair-key", todos[0].pair_tags[0].key);
+        assert_eq!("pair-value", todos[0].pair_tags[0].value);
+
+        let todos = parse("pre-message pair-key:pair-value post-message");
+        assert_eq!(1, todos.len());
+        assert_eq!("pre-message pair-key:pair-value post-message", todos[0].text);
+        assert_eq!(1, todos[0].pair_tags.len());
+        assert_eq!("pair-key", todos[0].pair_tags[0].key);
+        assert_eq!("pair-value", todos[0].pair_tags[0].value);
+
+        let todos = parse("pre-message keyA:valueA keyB:valueB post-message");
+        assert_eq!("pre-message keyA:valueA keyB:valueB post-message", todos[0].text);
+        assert_eq!(1, todos.len());
+        assert_eq!(2, todos[0].pair_tags.len());
+        assert_eq!("keyA", todos[0].pair_tags[0].key);
+        assert_eq!("valueA", todos[0].pair_tags[0].value);
+        assert_eq!("keyB", todos[0].pair_tags[1].key);
+        assert_eq!("valueB", todos[0].pair_tags[1].value);
+
+        // duplicate pairs should be handled by the application layer
+        // it is not the parsers responsibility to destroy data
+        let todos = parse("message keyA:valueA keyA:valueA");
+        assert_eq!("message keyA:valueA keyA:valueA", todos[0].text);
+        assert_eq!(1, todos.len());
+        assert_eq!(2, todos[0].pair_tags.len());
+    }
+
+    #[test]
     fn dates() {
         let todos = parse("This is a todo without any dates");
         assert_eq!("This is a todo without any dates", todos[0].text);
@@ -152,6 +190,8 @@ mod tests {
 
 use pest::Parser;
 
+const ASCII_A_U8: u8 = 'A' as u8;
+
 mod todotxt {
     #[derive(Parser)]
     #[grammar = "todo.txt.pest"]
@@ -162,7 +202,10 @@ mod todotxt {
 pub struct Date(u16, u8, u8);
 
 #[derive(Debug, PartialEq)]
-pub struct PairTag<'a>(&'a str, &'a str);
+pub struct PairTag<'a> {
+    key: &'a str,
+    value: &'a str
+}
 
 #[derive(Default)]
 pub struct Todo<'a> {
@@ -177,32 +220,33 @@ pub struct Todo<'a> {
 }
 
 pub fn parse(text: &str) -> Vec<Todo> {
-    let entry_list = todotxt::Parser::parse(todotxt::Rule::entry_list, text)
-        .expect("unsuccessful parse").next().unwrap();
-
-    println!("parse!");
-
-    let result = entry_list.into_inner()
-        .filter_map(|pair| {
-            println!("{:?}", pair);
-            parse_entry(pair)
-        }).collect();
-
-    return result;
+    text.lines()
+        .filter_map(|line| {
+            let result = todotxt::Parser::parse(todotxt::Rule::entry, line);
+                
+            if result.is_err() {
+                // todo: error handling!!
+                None
+            } else {
+                let entry_pair = result.unwrap().next().unwrap();
+                Some(parse_entry(entry_pair))
+            }
+        })
+        .collect()
 }
 
-fn parse_entry(entry_pair: pest::iterators::Pair<todotxt::Rule>) -> Option<Todo> {
+fn parse_entry(entry_pair: pest::iterators::Pair<todotxt::Rule>) -> Todo {
     let mut todo: Todo = Default::default();
+
     for entry_inner in entry_pair.into_inner() {
         match entry_inner.as_rule() {
             todotxt::Rule::complete_flag => {
                 todo.is_completed = !entry_inner.as_str().is_empty();
             }
             todotxt::Rule::priority_value => {
+                // the parser guarantees that there is a single undercase char
                 let value_char = entry_inner.as_str().chars().next().unwrap();
-                if value_char.is_ascii_uppercase() {
-                    todo.priority = Some(value_char as u8 - 'A' as u8);
-                }
+                todo.priority = Some(value_char as u8 - ASCII_A_U8);
             }
             todotxt::Rule::date_creation => {
                 todo.date_creation = as_date(entry_inner);
@@ -212,25 +256,31 @@ fn parse_entry(entry_pair: pest::iterators::Pair<todotxt::Rule>) -> Option<Todo>
             }
             todotxt::Rule::tail => {
                 todo.text = entry_inner.as_str();
-
-                for tail_inner in entry_inner.into_inner() {
-                    match tail_inner.as_rule() {
-                        todotxt::Rule::context_tag => {
-                            todo.context_tags.push(as_tag(tail_inner));
-                        }
-                        todotxt::Rule::project_tag => {
-                            todo.project_tags.push(as_tag(tail_inner));
-                        }
-                        todotxt::Rule::span => {}
-                        _ => unreachable!()
-                    }
-                }
+                parse_tail(entry_inner, &mut todo);
             }
             _ => unreachable!()
         }
     }
 
-    if todo.text.is_empty() { None } else { Some(todo) }
+    todo
+}
+
+fn parse_tail<'a>(entry_inner: pest::iterators::Pair<'a, todotxt::Rule>, todo: &mut Todo<'a>) {
+    for tail_inner in entry_inner.into_inner() {
+        match tail_inner.as_rule() {
+            todotxt::Rule::context_tag => {
+                todo.context_tags.push(as_tag(tail_inner));
+            }
+            todotxt::Rule::project_tag => {
+                todo.project_tags.push(as_tag(tail_inner));
+            }
+            todotxt::Rule::pair => {
+                todo.pair_tags.push(as_pair(tail_inner));
+            }
+            todotxt::Rule::span => {}
+            _ => unreachable!()
+        }
+    }
 }
 
 fn as_date(date_pair: pest::iterators::Pair<todotxt::Rule>) -> Option<Date> {
@@ -244,4 +294,12 @@ fn as_date(date_pair: pest::iterators::Pair<todotxt::Rule>) -> Option<Date> {
 fn as_tag(tag_pair: pest::iterators::Pair<todotxt::Rule>) -> &str {
     // tags have whitespace and a single character prefixing them
     &tag_pair.as_str()[2..]
+}
+
+fn as_pair<'a>(tag_pair: pest::iterators::Pair<'a, todotxt::Rule>) -> PairTag {
+    let mut inner = tag_pair.into_inner();
+    PairTag {
+        key: inner.next().unwrap().as_str(),
+        value: inner.next().unwrap().as_str()
+    }
 }
