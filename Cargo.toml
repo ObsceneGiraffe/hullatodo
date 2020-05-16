@@ -1,0 +1,7 @@
+[workspace]
+
+members = [
+    "hullatodo_cli",
+    "hullatodo_core",
+    "hullatodo_txt"
+]
