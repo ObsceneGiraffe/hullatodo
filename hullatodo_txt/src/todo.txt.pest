@@ -11,8 +11,14 @@ date = { year ~ date_sep ~ month ~ date_sep ~ day}
 date_creation = _{ date ~ WHITE_SPACE }
 date_completed = _{ date ~ WHITE_SPACE }
 
-char = { !("\n") ~ ANY }
-tail = @{ char* }
+tail = { span? ~ inner* }
+inner = _{ (context_tag | project_tag | span) }
+span = @{(!("\n" | context_tag_prefix | project_tag_prefix) ~ ANY)+ }
+context_tag_prefix = @{ WHITE_SPACE ~ "@" }
+project_tag_prefix = @{ WHITE_SPACE ~ "+" }
+context_tag = @{ context_tag_prefix ~ tag_char+ }
+project_tag = @{ project_tag_prefix ~ tag_char+ }
+tag_char = { !(WHITE_SPACE) ~ ANY }
 
 entry = { complete_flag? ~ priority? ~ date_creation? ~ date_completed? ~ tail}
 entry_list = { entry ~ (NEWLINE ~ entry)* }

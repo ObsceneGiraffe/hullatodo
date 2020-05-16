@@ -68,16 +68,46 @@ mod tests {
         assert_eq!("(B)->Submit TPS report", todos[0].text);
         assert_eq!(None, todos[0].priority);
     }
+
+    #[test]
+    fn tags() {
+        let todos = parse("(A) Call Mom +Family +PeaceLoveAndHappiness @iphone @phone");
+        assert_eq!("Call Mom +Family +PeaceLoveAndHappiness @iphone @phone", todos[0].text);
+        assert_eq!(Some(0), todos[0].priority);
+        assert_eq!(2, todos[0].context_tags.len());
+        assert_eq!("Family", todos[0].project_tags[0]);
+        assert_eq!("PeaceLoveAndHappiness", todos[0].project_tags[1]);
+        assert_eq!("iphone", todos[0].context_tags[0]);
+        assert_eq!("phone", todos[0].context_tags[1]);
+
+        let todos = parse("Email SoAndSo at soandso@example.com");
+        assert_eq!("Email SoAndSo at soandso@example.com", todos[0].text);
+        assert_eq!(0, todos[0].context_tags.len());
+
+        let todos = parse("Learn how to add 2+2");
+        assert_eq!("Learn how to add 2+2", todos[0].text);
+        assert_eq!(0, todos[0].project_tags.len());
+
+        let todos = parse("Do Unicode tags work @ハラトド do they?");
+        assert_eq!("Do Unicode tags work @ハラトド do they?", todos[0].text);
+        assert_eq!(1, todos[0].context_tags.len());
+        assert_eq!("ハラトド", todos[0].context_tags[0]);
+    }
 }
 
 use pest::Parser;
 
-#[derive(Parser)]
-#[grammar = "todo.txt.pest"]
-pub struct TodoTxtParser;
+mod todotxt {
+    #[derive(Parser)]
+    #[grammar = "todo.txt.pest"]
+    pub struct Parser;
+}
 
 #[derive(Debug, Default)]
 pub struct Date(u16, u8, u8);
+
+#[derive(Debug)]
+pub struct PairTag<'a>(&'a str, &'a str);
 
 #[derive(Default)]
 pub struct Todo<'a> {
@@ -86,14 +116,13 @@ pub struct Todo<'a> {
     pub date_creation: Date,
     pub date_completed: Date,
     pub text: &'a str,
-    pub contexts: Vec<&'a str>,
-    pub projects: Vec<&'a str>,
     pub context_tags: Vec<&'a str>,
-    pub kv_tags: Vec<(&'a str, &'a str)>
+    pub project_tags: Vec<&'a str>,
+    pub pair_tags: Vec<PairTag<'a>>
 }
 
 pub fn parse(text: &str) -> Vec<Todo> {
-    let entry_list = TodoTxtParser::parse(Rule::entry_list, text)
+    let entry_list = todotxt::Parser::parse(todotxt::Rule::entry_list, text)
         .expect("unsuccessful parse").next().unwrap();
 
     println!("parse!");
@@ -101,40 +130,51 @@ pub fn parse(text: &str) -> Vec<Todo> {
     let result = entry_list.into_inner()
         .filter_map(|pair| {
             println!("{:?}", pair);
-
-            match pair.as_rule() {
-                Rule::entry => parse_entry(pair),
-                Rule::EOI => None,
-                _ => unreachable!()
-            }
+            parse_entry(pair)
         }).collect();
 
     return result;
 }
 
-fn parse_entry(entry: pest::iterators::Pair<Rule>) -> Option<Todo> {
+fn parse_entry(entry: pest::iterators::Pair<todotxt::Rule>) -> Option<Todo> {
     let mut todo: Todo = Default::default();
-    for field in entry.into_inner() {
-        match field.as_rule() {
-            Rule::complete_flag => {
-                todo.is_completed = !field.as_str().is_empty();
+    for entry_inner in entry.into_inner() {
+        match entry_inner.as_rule() {
+            todotxt::Rule::complete_flag => {
+                todo.is_completed = !entry_inner.as_str().is_empty();
             }
-            Rule::priority_value => {
-                let value_char = field.as_str().chars().next().unwrap();
+            todotxt::Rule::priority_value => {
+                let value_char = entry_inner.as_str().chars().next().unwrap();
                 if value_char.is_ascii_uppercase() {
                     todo.priority = Some(value_char as u8 - 'A' as u8);
                 }
             }
-            Rule::date_creation => {
-                println!("{:?}", field.as_str());
+            todotxt::Rule::date_creation => {
+                println!("{:?}", entry_inner.as_str());
                 todo.date_creation = Default::default();
             }
-            Rule::date_completed => {
-                println!("{:?}", field.as_str());
+            todotxt::Rule::date_completed => {
+                println!("{:?}", entry_inner.as_str());
                 todo.date_completed = Default::default();
             }
-            Rule::tail => {
-                todo.text = field.as_str();
+            todotxt::Rule::tail => {
+                todo.text = entry_inner.as_str();
+
+                for tail_inner in entry_inner.into_inner() {
+                    match tail_inner.as_rule() {
+                        todotxt::Rule::context_tag => {
+                            // tags whitespace and a single character prefixing them
+                            let tag = &tail_inner.as_str()[2..];
+                            todo.context_tags.push(tag);
+                        }
+                        todotxt::Rule::project_tag => {
+                            let tag = &tail_inner.as_str()[2..];
+                            todo.project_tags.push(tag);
+                        }
+                        todotxt::Rule::span => {}
+                        _ => unreachable!()
+                    }
+                }
             }
             _ => unreachable!()
         }
