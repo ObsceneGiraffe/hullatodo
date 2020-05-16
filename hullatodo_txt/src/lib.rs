@@ -20,6 +20,44 @@ mod tests {
     }
 
     #[test]
+    fn todo_list() {
+        let todos = parse(
+            "this is the first todo\
+            this is the second todo"
+        );
+        assert_eq!(2, todos.len());
+        assert_eq!("this is the first todo", todos[0].text);
+        assert_eq!("this is the second todo", todos[1].text);
+
+        let todos = parse(
+            "this is the first todo\
+            x 2020-05-17 this is the @second todo\
+            2020-05-18 this is the +third todo");
+        
+        assert_eq!(3, todos.len());
+        assert_eq!("this is the first todo", todos[0].text);
+        assert_eq!("this is the @second todo", todos[1].text);
+        assert_eq!("this is the +third todo", todos[2].text);
+
+        assert_eq!(false, todos[0].is_completed);
+        assert_eq!(true, todos[1].is_completed);
+        assert_eq!(false, todos[2].is_completed);
+
+        assert_eq!(None, todos[0].date_completed);
+        assert_eq!(Some(Date(2020, 5, 17)), todos[1].date_completed);
+        assert_eq!(Some(Date(2020, 5, 18)), todos[2].date_completed);
+
+        assert_eq!(0, todos[0].context_tags.len());
+        assert_eq!(0, todos[0].project_tags.len());
+        assert_eq!(1, todos[1].context_tags.len());
+        assert_eq!(0, todos[1].project_tags.len());
+        assert_eq!("second", todos[1].context_tags[0]);
+        assert_eq!(0, todos[2].context_tags.len());
+        assert_eq!(1, todos[2].project_tags.len());
+        assert_eq!("third", todos[2].project_tags[0]);
+    }
+
+    #[test]
     fn completeness() {
         let todos = parse("x this is a todo");
         assert_eq!(1, todos.len());
@@ -178,13 +216,10 @@ fn parse_entry(entry_pair: pest::iterators::Pair<todotxt::Rule>) -> Option<Todo>
                 for tail_inner in entry_inner.into_inner() {
                     match tail_inner.as_rule() {
                         todotxt::Rule::context_tag => {
-                            // tags whitespace and a single character prefixing them
-                            let tag = &tail_inner.as_str()[2..];
-                            todo.context_tags.push(tag);
+                            todo.context_tags.push(as_tag(tail_inner));
                         }
                         todotxt::Rule::project_tag => {
-                            let tag = &tail_inner.as_str()[2..];
-                            todo.project_tags.push(tag);
+                            todo.project_tags.push(as_tag(tail_inner));
                         }
                         todotxt::Rule::span => {}
                         _ => unreachable!()
@@ -204,4 +239,9 @@ fn as_date(date_pair: pest::iterators::Pair<todotxt::Rule>) -> Option<Date> {
     let month = inner.next().unwrap().as_str().parse::<u8>().unwrap();
     let day = inner.next().unwrap().as_str().parse::<u8>().unwrap();
     Some(Date(year, month, day))
+}
+
+fn as_tag(tag_pair: pest::iterators::Pair<todotxt::Rule>) -> &str {
+    // tags have whitespace and a single character prefixing them
+    &tag_pair.as_str()[2..]
 }
