@@ -1,4 +1,4 @@
-#[macro_use]
+#[cfg_attr(not(feature = "nom_parser"), macro_use)]
 extern crate pest_derive;
 
 use std::error;
