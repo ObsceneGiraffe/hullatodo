@@ -45,12 +45,11 @@ pub struct Todo<'a> {
     pub pair_tags: Vec<PairTag<'a>>
 }
 
-#[cfg(feature = "pest_parser")]
+#[cfg(not(feature = "nom_parser"))]
 mod pest_parser;
 
-#[cfg(feature = "pest_parser")]
+#[cfg(not(feature = "nom_parser"))]
 pub fn parse(text: &str) -> Vec<Result<Todo, ParseError>> {
-    println!("pest_parser::parse");
     pest_parser::parse(text)
 }
 
@@ -59,12 +58,5 @@ mod nom_parser;
 
 #[cfg(feature = "nom_parser")]
 pub fn parse(text: &str) -> Vec<Result<Todo, ParseError>> {
-    println!("nom_parser::parse");
     nom_parser::parse(text)
-}
-
-#[cfg(all(not(feature = "pest_parser"), not(feature = "nom_parser")))]
-pub fn parse(_text: &str) -> Vec<Result<Todo, ParseError>> {
-    println!("vanilla::parse");
-    vec![]
 }

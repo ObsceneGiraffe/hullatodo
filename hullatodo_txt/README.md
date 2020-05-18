@@ -8,9 +8,6 @@ The goal of this project is to create a fast todo.txt parser with friendly error
 # Running the tests
 
 The two implementations have been implemented in terms of features so that they can both use the same test suite.
-
-> :warning: Running without a feature will result in the tests failing.
-
 To run the Pest parser version:
 
 ```zsh
@@ -22,3 +19,5 @@ To run the Nom parser version:
 ```zsh
 cargo test --features nom_parser
 ```
+
+Running cargo test without any feature specified will run the Pest parser implementation. 
