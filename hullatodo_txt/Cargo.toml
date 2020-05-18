@@ -6,8 +6,15 @@ edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[dependencies.nom]
+version = "5.1.1"
+
 [dependencies.pest]
 version = "2.1.3"
 
 [dependencies.pest_derive]
 version = "2.1.0"
+
+[features]
+pest_parser = []
+nom_parser = []
