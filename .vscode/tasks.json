@@ -4,19 +4,51 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "build",
+            "label": "build hullatodo_txt",
             "type": "shell",
             "command": "cargo",
             "args": [
                 "build"
             ],
+            "options": {
+                "cwd": "${workspaceFolder}/hullatodo_txt"
+            },
             "presentation": {
                 "reveal": "always",
                 "clear": true
             },
             "problemMatcher": [
                 "$rustc"
-            ]
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "test hullatodo_txt",
+            "type": "shell",
+            "command": "cargo",
+            "args": [
+                "test",
+                "--features",
+                "nom_parser"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/hullatodo_txt"
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "clear": true
+            },
+            "problemMatcher": [
+                "$rustc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
         }
     ]
 }
