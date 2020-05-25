@@ -1,0 +1,3 @@
+☐ implement a fallback paser with warnings for the priority parser combinator.
+☐ implement a fallback paser with warnings for the date parser combinator.
+☐ implement a fallback paser with warnings for the completed parser combinator.
