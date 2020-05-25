@@ -1,7 +1,7 @@
 #![warn(clippy::all)]
 extern crate nom;
 
-use super::{Date, ParseWarning, Todo, TodoLines};
+use super::{Date, ParseWarning, ParseWarningKind, Todo, TodoLines};
 
 use nom::{
     bytes::complete::{is_not, take, take_until, take_while},
@@ -30,7 +30,18 @@ mod test {
     fn test_complete() {
         let parser = complete;
         assert_eq!(parser("X hello"), Ok((" hello", (true, vec![]))));
-        assert_eq!(parser("x hello"), Ok(("x hello", (false, vec![]))));
+        assert_eq!(parser("x hello"), Ok(("x hello", 
+            (
+                false, 
+                vec![
+                    ParseWarning {
+                        text_span: (0, 1),
+                        char: Some(0),
+                        kind: ParseWarningKind::LowerCaseCompleteFlag
+                    }
+                ]
+            )
+        )));
         assert_eq!(parser("hello"), Ok(("hello", (false, vec![]))));
     }
 
@@ -190,8 +201,25 @@ fn wp<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, &'a str, E> {
 fn complete(input: &'_ str) -> TodoParserResult<bool> {
     match opt(char('X'))(input) {
         Ok((line, Some(_))) => Ok((line, (true, vec![]))),
-        Ok((line, None)) => Ok((line, (false, vec![]))),
-        Err(x) => Err(x),
+        Ok((line, None)) => {
+            println!("{:#?}", line);
+            let mut warnings: Vec<ParseWarning> = vec![];
+
+            if let Some(c) = line.chars().next() {
+                if c == 'x' {
+                    warnings.push(
+                        ParseWarning {
+                            text_span: (0, 1),
+                            char: Some(0),
+                            kind: ParseWarningKind::LowerCaseCompleteFlag
+                        }
+                    );
+                }
+            };
+
+            Ok((line, (false, warnings)))
+        },
+        Err(x) => Err(x)
     }
 }
 
