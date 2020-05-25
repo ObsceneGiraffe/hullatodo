@@ -1,35 +1,29 @@
+#![warn(clippy::all)]
 extern crate nom;
 
-use super::{
-    Date,
-    ParseWarning,
-    Todo,
-    TodoLines
-};
+use super::{Date, ParseWarning, Todo, TodoLines};
 
 use nom::{
-    IResult,
     bytes::complete::{is_not, take, take_until, take_while},
-    character::{is_digit},
     character::complete::{anychar, char, newline},
+    character::is_digit,
     combinator::{flat_map, map, map_res, opt, verify},
     error::{context, ErrorKind, ParseError, VerboseError},
     sequence::{delimited, tuple},
+    IResult,
 };
 
 #[cfg(test)]
 mod test {
     use super::*;
 
-    use nom::{
-        error::{ErrorKind, VerboseErrorKind}
-    };
+    use nom::error::{ErrorKind, VerboseErrorKind};
 
     #[test]
     fn test_not_whitespace() {
         assert_eq!(not_whitespace("abcd efg"), Ok((" efg", "abcd")));
-		assert_eq!(not_whitespace("abcd\tefg"), Ok(("\tefg", "abcd")));
-		assert_eq!(not_whitespace(" abcdefg"), Err(nom::Err::Error((" abcdefg", nom::error::ErrorKind::IsNot))));
+        assert_eq!(not_whitespace("abcd\tefg"), Ok(("\tefg", "abcd")));
+        assert_eq!(not_whitespace(" abcdefg"),Err(nom::Err::Error((" abcdefg", nom::error::ErrorKind::IsNot))));
     }
 
     #[test]
@@ -42,34 +36,33 @@ mod test {
 
     #[test]
     fn test_priority() {
-
         let parser = priority;
-        // assert_eq!(parser(""), Ok(("", (None, vec![]))));
-        // assert_eq!(parser("(A) hello"), Ok((" hello", (Some(0u8), vec![]))));
-        // assert_eq!(parser("(Z) hello"), Ok((" hello", (Some(25u8), vec![]))));
-        
+        assert_eq!(parser(""), Ok(("", (None, vec![]))));
+        assert_eq!(parser("(A) hello"), Ok((" hello", (Some(0u8), vec![]))));
+        assert_eq!(parser("(Z) hello"), Ok((" hello", (Some(25u8), vec![]))));
         println!("res: {:#?}", parser("(AA) hello"));
-        // assert_eq!(parser("(AA) hello"), 
+
+        // assert_eq!(parser("(AA) hello"),
         //     Err(
         //         nom::Err::Error(
-        //             VerboseError { 
+        //             VerboseError {
         //                 errors: vec![
-        //                     ("A) hello", VerboseErrorKind::Char(')')), 
+        //                     ("A) hello", VerboseErrorKind::Char(')')),
         //                     ("(AA) hello", VerboseErrorKind::Context("priority"))
-        //                 ] 
+        //                 ]
         //             }
         //         )
         //     )
         // );
 
-        // assert_eq!(parser("(a) hello"), 
+        // assert_eq!(parser("(a) hello"),
         //     Err(
         //         nom::Err::Error(
-        //             VerboseError { 
+        //             VerboseError {
         //                 errors: vec![
-        //                     ("a) hello", VerboseErrorKind::Nom(ErrorKind::Verify)), 
+        //                     ("a) hello", VerboseErrorKind::Nom(ErrorKind::Verify)),
         //                     ("(a) hello", VerboseErrorKind::Context("priority"))
-        //                 ] 
+        //                 ]
         //             }
         //         )
         //     )
@@ -79,26 +72,29 @@ mod test {
     #[test]
     fn test_date() {
         let parser = date;
-
-
-        assert_eq!(parser("2020-05-23 hello"), 
+        assert_eq!(
+            parser("2020-05-23 hello"),
             Ok((
                 " hello",
                 (
-                    Some(Date {year: 2020, month: 05, day: 23}),
+                    Some(Date {
+                        year: 2020,
+                        month: 5,
+                        day: 23
+                    }),
                     vec![]
                 )
             ))
         );
 
-        // assert_eq!(parser("2020-05 hello"), 
+        // assert_eq!(parser("2020-05 hello"),
         //     Err(
         //         nom::Err::Error(
-        //             VerboseError { 
+        //             VerboseError {
         //                 errors: vec![
-        //                     ("a) hello", VerboseErrorKind::Nom(ErrorKind::Verify)), 
+        //                     ("a) hello", VerboseErrorKind::Nom(ErrorKind::Verify)),
         //                     ("(a) hello", VerboseErrorKind::Context("priority"))
-        //                 ] 
+        //                 ]
         //             }
         //         )
         //     )
@@ -106,20 +102,19 @@ mod test {
     }
 }
 
-const ASCII_A_U8: u8 = 'A' as u8;
+const ASCII_A_U8: u8 = b'A';
 const DATE_DELIMITER: char = '-';
 
-// The TodoParser defines a custom Result and a custom error 
+// The TodoParser defines a custom Result and a custom error
 // so that parse warnings can be passes along in each case
-// these warnings buble up to the top of the call graph and are aggregated together 
+// these warnings buble up to the top of the call graph and are aggregated together
 #[derive(Debug, PartialEq)]
 struct TodoParserError<'a>(&'a str, ErrorKind, Vec<ParseWarning>);
 
-impl <'a> ParseError<&'a str> for TodoParserError<'a> {
+impl<'a> ParseError<&'a str> for TodoParserError<'a> {
     fn from_error_kind(input: &'a str, kind: ErrorKind) -> Self {
         TodoParserError(input, kind, vec![])
     }
-  
     fn append(_: &'a str, _: ErrorKind, other: Self) -> Self {
         other
     }
@@ -127,7 +122,7 @@ impl <'a> ParseError<&'a str> for TodoParserError<'a> {
 
 type TodoParserResult<'a, T, E = TodoParserError<'a>> = IResult<&'a str, (T, Vec<ParseWarning>), E>;
 
-pub fn parse<'a>(text: &'a str) -> TodoLines<'a> {
+pub fn parse(text: &'_ str) -> TodoLines<'_> {
     text.lines()
         .map(|line| root(line))
         .collect()
@@ -139,41 +134,46 @@ fn root<'a>(i: &'a str) -> Option<Todo> {
         priority,
         date,
         date,
-        tail
+        text
     ));
 
     match parser(i) {
-        Ok((_, (complete_pair, priority_pair, date_completed_pair, date_creation_pair, tail_pair))) => {
-             
+        Ok((
+            _,
+            (complete_pair, priority_pair, date_completed_pair, date_creation_pair, text_pair),
+        )) => {
             let (is_completed, complete_warnings) = complete_pair;
             let (priority, priority_warnings) = priority_pair;
             let (date_completed, date_comleted_warnings) = date_completed_pair;
             let (date_creation, date_created_warnings) = date_creation_pair;
-            let (tail, tail_warnings) = tail_pair;
+            let (text, text_warnings) = text_pair;
 
-            let ready = vec![complete_warnings, priority_warnings, date_comleted_warnings, date_created_warnings, tail_warnings];
-            let warnings = ready.into_iter().fold(vec![],
-                |mut a, b| { 
-                    a.extend(b); 
-                    a 
-                }
-            );
+            let ready = vec![
+                complete_warnings,
+                priority_warnings,
+                date_comleted_warnings,
+                date_created_warnings,
+                text_warnings,
+            ];
+
+            let warnings = ready.into_iter().fold(vec![], |mut a, b| {
+                a.extend(b);
+                a
+            });
 
             Some(Todo {
-                is_completed: is_completed,
-                priority: priority,
-                date_completed: date_completed,
-                date_creation: date_creation,
-                text: tail,
+                is_completed,
+                priority,
+                date_completed,
+                date_creation,
+                text,
                 context_tags: vec![],
                 project_tags: vec![],
                 pair_tags: vec![],
-                warnings: warnings
+                warnings,
             })
-        },
-        Err(_) => {
-            None
         }
+        Err(_) => None,
     }
 }
 
@@ -187,14 +187,15 @@ fn wp<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, &'a str, E> {
     take_while(move |c| chars.contains(c))(i)
 }
 
-fn complete<'a>(input: &'a str) -> TodoParserResult<bool> {
+fn complete(input: &'_ str) -> TodoParserResult<bool> {
     match opt(char('X'))(input) {
         Ok((line, Some(_))) => Ok((line, (true, vec![]))),
         Ok((line, None)) => Ok((line, (false, vec![]))),
-        Err(x) => Err(x)
+        Err(x) => Err(x),
     }
 }
 
+#[allow(clippy::trivially_copy_pass_by_ref)]
 fn is_upper(input: &char) -> bool {
     input.is_uppercase()
 }
@@ -214,12 +215,12 @@ fn priority<'a>(i: &'a str) -> TodoParserResult<Option<u8>> {
             }
         )
     );
-    
     parser(i)
         .map(|(i, prio)| (i, (Some(prio), vec![])))
         .or_else(|err: nom::Err<TodoParserError>| {
             match err {
                 nom::Err::Error(e) => {
+                    // TODO: produce priority warnings
                     println!("err: {:?}", e);
                     let warnings = vec![]; 
                     Ok((i, (None, warnings)))
@@ -234,38 +235,37 @@ fn all_digits(s: &str) -> bool {
     s.chars().all(|c| c.is_numeric())
 }
 
-fn take_digits<'a, E: ParseError<&'a str>>(n: usize) -> impl Fn(&'a str) -> IResult<&'a str, &'a str, E> {
-    move |i: &'a str| {
-        verify(take(n), |s: &str| all_digits(s))(i)
-    }
+fn take_digits<'a, E: ParseError<&'a str>>(n: usize,) -> 
+    impl Fn(&'a str) -> IResult<&'a str, &'a str, E> {
+    move |i: &'a str| verify(take(n), |s: &str| all_digits(s))(i)
 }
 
-fn date<'a>(i: &'a str) -> TodoParserResult<Option<Date>> {
+fn date(i: &'_ str) -> TodoParserResult<Option<Date>> {
     let year = take_digits(4usize);
     let month = take_digits(2usize);
     let day = take_digits(2usize);
     let parser = map(
         tuple((year, char(DATE_DELIMITER), month, char(DATE_DELIMITER), day)),
-        |(year, _, month, _, day)| {
-            Date {
-                year: year.parse::<u16>().unwrap(),
-                month: month.parse::<u8>().unwrap(),
-                day: day.parse::<u8>().unwrap()
-            }
-        }
+        |(year, _, month, _, day)| Date {
+            year: year.parse::<u16>().unwrap(),
+            month: month.parse::<u8>().unwrap(),
+            day: day.parse::<u8>().unwrap(),
+        },
     );
 
     parser(i)
         .map(|(i, date)| (i, (Some(date), vec![])))
         .or_else(|err: nom::Err<TodoParserError>| {
+            // TODO: produce date warnings
             Err(err)
         })
 }
 
-fn tail<'a, E: ParseError<&'a str>>(i: &'a str) -> TodoParserResult<&'a str, E> {
+fn text<'a, E: ParseError<&'a str>>(i: &'a str) -> TodoParserResult<&'a str, E> {
     take_until("\n")(i)
         .map(|(i, s)| (i, (s, vec![])))
-        .or_else(|err: nom::Err<E>| {
-            Err(err)
-        })
+        // TODO: parse context tags
+        // TODO: parse project tags
+        // TODO: parse kv pairs
+        // TODO: produce text warnings
 }
