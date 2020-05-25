@@ -1,9 +1,11 @@
 extern crate pest;
 
-use super::Date;
-use super::PairTag;
-use super::ParseError;
-use super::Todo;
+use super::{
+    Date, 
+    PairTag,
+    Todo,
+    TodoLines,
+};
 
 use pest::Parser;
 
@@ -13,17 +15,20 @@ struct TodoParser;
 
 const ASCII_A_U8: u8 = 'A' as u8;
 
-pub fn parse(text: &str) -> Vec<Result<Todo, ParseError>> {
+pub fn parse<'a>(text: &'a str) -> TodoLines<'a> {
     text.lines()
         .map(|line| {
             let result = TodoParser::parse(Rule::entry, line);
                 
-            if result.is_err() {
-                // todo: error handling!!
-                Err(ParseError {})
-            } else {
-                let entry_pair = result.unwrap().next().unwrap();
-                Ok(parse_entry(entry_pair))
+            match result {
+                Ok(mut pairs) => {
+                    let entry_pair = pairs.next().unwrap();
+                    Some(parse_entry(entry_pair))
+                },
+                Err(_pest_error) => {
+                    // todo: error handling!!
+                    None
+                }
             }
         })
         .collect()
