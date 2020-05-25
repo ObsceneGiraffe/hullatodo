@@ -202,7 +202,6 @@ fn complete(input: &'_ str) -> TodoParserResult<bool> {
     match opt(char('X'))(input) {
         Ok((line, Some(_))) => Ok((line, (true, vec![]))),
         Ok((line, None)) => {
-            println!("{:#?}", line);
             let mut warnings: Vec<ParseWarning> = vec![];
 
             if let Some(c) = line.chars().next() {
