@@ -17,11 +17,6 @@ use nom::{
     sequence::{delimited, tuple},
 };
 
-// use std::{
-//     vec::IntoIter,
-//     iter::IntoIterator
-// };
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -39,8 +34,7 @@ mod test {
 
     #[test]
     fn test_complete() {
-        // let parser = complete::<(&str, ErrorKind)>;
-        let parser = complete::<VerboseError<&str>>;
+        let parser = complete;
         assert_eq!(parser("X hello"), Ok((" hello", (true, vec![]))));
         assert_eq!(parser("x hello"), Ok(("x hello", (false, vec![]))));
         assert_eq!(parser("hello"), Ok(("hello", (false, vec![]))));
@@ -49,11 +43,10 @@ mod test {
     #[test]
     fn test_priority() {
 
-        let parser = priority::<(&str, ErrorKind)>;
-        // let parser = priority::<VerboseError<&str>>;
-        assert_eq!(parser(""), Ok(("", (None, vec![]))));
-        assert_eq!(parser("(A) hello"), Ok((" hello", (Some(0u8), vec![]))));
-        assert_eq!(parser("(Z) hello"), Ok((" hello", (Some(25u8), vec![]))));
+        let parser = priority;
+        // assert_eq!(parser(""), Ok(("", (None, vec![]))));
+        // assert_eq!(parser("(A) hello"), Ok((" hello", (Some(0u8), vec![]))));
+        // assert_eq!(parser("(Z) hello"), Ok((" hello", (Some(25u8), vec![]))));
         
         println!("res: {:#?}", parser("(AA) hello"));
         // assert_eq!(parser("(AA) hello"), 
@@ -85,9 +78,9 @@ mod test {
 
     #[test]
     fn test_date() {
-        let parser = date::<(&str, ErrorKind)>;
-        // let parser = date::<VerboseError<&str>>;
-        // TodoParserResult<Option<Date>, E>
+        let parser = date;
+
+
         assert_eq!(parser("2020-05-23 hello"), 
             Ok((
                 " hello",
@@ -136,11 +129,11 @@ type TodoParserResult<'a, T, E = TodoParserError<'a>> = IResult<&'a str, (T, Vec
 
 pub fn parse<'a>(text: &'a str) -> TodoLines<'a> {
     text.lines()
-        .map(|line| root::<TodoParserError>(line))
+        .map(|line| root(line))
         .collect()
 }
 
-fn root<'a, E: ParseError<&'a str>>(i: &'a str) -> Option<Todo> {
+fn root<'a>(i: &'a str) -> Option<Todo> {
     let parser = tuple::<_, _, TodoParserError<'a>, _>((
         complete,
         priority,
@@ -184,13 +177,6 @@ fn root<'a, E: ParseError<&'a str>>(i: &'a str) -> Option<Todo> {
     }
 }
 
-// pub fn concat<I>(iterable: I) -> I::Item
-//     where I: IntoIterator,
-//           I::Item: Extend<<<I as IntoIterator>::Item as IntoIterator>::Item> + IntoIterator + Default
-// {
-//     iterable.into_iter().fold1(|mut a, b| { a.extend(b); a }).unwrap_or_else(|| <_>::default())
-// }
-
 #[allow(dead_code)]
 fn not_whitespace(input: &str) -> IResult<&str, &str> {
     is_not(" \t")(input)
@@ -201,7 +187,7 @@ fn wp<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, &'a str, E> {
     take_while(move |c| chars.contains(c))(i)
 }
 
-fn complete<'a, E: ParseError<&'a str>>(input: &'a str) -> TodoParserResult<bool, E> {
+fn complete<'a>(input: &'a str) -> TodoParserResult<bool> {
     match opt(char('X'))(input) {
         Ok((line, Some(_))) => Ok((line, (true, vec![]))),
         Ok((line, None)) => Ok((line, (false, vec![]))),
@@ -214,7 +200,7 @@ fn is_upper(input: &char) -> bool {
 }
 
 #[allow(dead_code)]
-fn priority<'a, E: ParseError<&'a str>>(i: &'a str) -> TodoParserResult<Option<u8>, E> {
+fn priority<'a>(i: &'a str) -> TodoParserResult<Option<u8>> {
     let parser = context(
         "priority",
         map_res(
@@ -223,7 +209,7 @@ fn priority<'a, E: ParseError<&'a str>>(i: &'a str) -> TodoParserResult<Option<u
                 verify(anychar, is_upper),
                 char(')')
             ),
-            |c: char| -> Result<u8, E> { 
+            |c: char| -> Result<u8, TodoParserError<'a>> { 
                 Ok((c as u8) - ASCII_A_U8)
             }
         )
@@ -231,11 +217,12 @@ fn priority<'a, E: ParseError<&'a str>>(i: &'a str) -> TodoParserResult<Option<u
     
     parser(i)
         .map(|(i, prio)| (i, (Some(prio), vec![])))
-        .or_else(|err: nom::Err<E>| {
+        .or_else(|err: nom::Err<TodoParserError>| {
             match err {
                 nom::Err::Error(e) => {
                     println!("err: {:?}", e);
-                    Ok((i, (None, vec![])))
+                    let warnings = vec![]; 
+                    Ok((i, (None, warnings)))
                 },
                 nom::Err::Failure(_e) => Ok((i, (None, vec![]))),
                 nom::Err::Incomplete(_) => Ok((i, (None, vec![])))
@@ -253,8 +240,8 @@ fn take_digits<'a, E: ParseError<&'a str>>(n: usize) -> impl Fn(&'a str) -> IRes
     }
 }
 
-fn date<'a, E: ParseError<&'a str>>(i: &'a str) -> TodoParserResult<Option<Date>, E> {
-let year = take_digits(4usize);
+fn date<'a>(i: &'a str) -> TodoParserResult<Option<Date>> {
+    let year = take_digits(4usize);
     let month = take_digits(2usize);
     let day = take_digits(2usize);
     let parser = map(
@@ -270,7 +257,7 @@ let year = take_digits(4usize);
 
     parser(i)
         .map(|(i, date)| (i, (Some(date), vec![])))
-        .or_else(|err: nom::Err<E>| {
+        .or_else(|err: nom::Err<TodoParserError>| {
             Err(err)
         })
 }
