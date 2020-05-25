@@ -64,18 +64,18 @@ pub struct Todo<'a> {
     pub warnings: Vec<ParseWarning>
 }
 
-// #[cfg(not(feature = "nom_parser"))]
-// mod pest_parser;
+#[cfg(not(feature = "nom_parser"))]
+mod pest_parser;
 
-// #[cfg(not(feature = "nom_parser"))]
-// pub fn parse<'a>(text: &'a str) -> TodoLines<'a> {
-//     pest_parser::parse(text)
-// }
+#[cfg(not(feature = "nom_parser"))]
+pub fn parse<'a>(text: &'a str) -> TodoLines<'a> {
+    pest_parser::parse(text)
+}
 
-// #[cfg(feature = "nom_parser")]
+#[cfg(feature = "nom_parser")]
 mod nom_parser;
 
-// #[cfg(feature = "nom_parser")]
-pub fn parse<'a>(text: &'a str) -> TodoLines<'a> {
+#[cfg(feature = "nom_parser")]
+pub fn parse(text: &'_ str) -> TodoLines<'_> {
     nom_parser::parse(text)
 }
