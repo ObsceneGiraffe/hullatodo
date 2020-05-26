@@ -1,0 +1,2 @@
+x install Flutter on linux box done:2020-05-21:16:46
+☐ lookup the Andoird KVM Linux Installation for improved emulation performance

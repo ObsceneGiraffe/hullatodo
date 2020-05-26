@@ -1,0 +1,6 @@
+x (A) find a suitable todo text format due:2030-05-14
+find out how to sync a text file using #holochain due:2020-05-03
+check out the [holo wiki|https://blog.holochain.org/h-wiki-is-here-take-ownership-of-your-collective-knowledge/] project
+x find a file change watchdog for Rust
+
+ 
