@@ -21,7 +21,7 @@ Upon first start the user is asked if they would like to create a new account or
 ## Create a new account
 
 The user is provided with a [unique ID|https://docs.rs/rand/0.5.0/rand/prng/index.html] 
-The ID should be a base36 string as that can be easily written down if needed.
+The ID should be a [base36|https://docs.rs/radix_fmt/1.0.0/radix_fmt/] string as that can be easily written down if needed.
 
 ## Linking an existing account
 
