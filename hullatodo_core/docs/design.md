@@ -6,7 +6,7 @@ The user can choose to remain completely anonymous
 
 # Technical Goals
 
-* Todos and config are stored as text files
+* Todos and config are stored as [text files|https://github.com/todotxt/todo.txt]
 * Files are synced p2p (using Holochain?)
 * No user information is needed to use or sync devices
 * Start up time is as fast as possible
