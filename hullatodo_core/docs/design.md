@@ -10,6 +10,9 @@ The user can choose to remain completely anonymous
 * Files are synced p2p (using Holochain?)
 * No user information is needed to use or sync devices
 * Start up time is as fast as possible
+* The todos have no hierarchy, they only have tags
+* Filtering and presenting the filtered todos should be as fast as possible, under 200ms if possible.
+* the user ID should not 
 
 # Account Creation
 
@@ -17,4 +20,13 @@ Upon first start the user is asked if they would like to create a new account or
 
 ## Create a new account
 
+The user is provided with a [unique ID|https://docs.rs/rand/0.5.0/rand/prng/index.html] 
+The ID should be a base36 string as that can be easily written down if needed.
+
 ## Linking an existing account
+
+
+
+# Sharing Filters
+
+
