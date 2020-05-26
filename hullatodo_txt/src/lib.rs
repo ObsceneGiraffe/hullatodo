@@ -1,6 +1,7 @@
 #![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
-#[cfg_attr(not(feature = "nom_parser"), macro_use)]
 extern crate pest_derive;
+
+mod parser;
 
 use std::fmt;
 
@@ -64,18 +65,6 @@ pub struct Todo<'a> {
     pub warnings: Vec<ParseWarning>
 }
 
-#[cfg(not(feature = "nom_parser"))]
-mod pest_parser;
-
-#[cfg(not(feature = "nom_parser"))]
 pub fn parse<'a>(text: &'a str) -> TodoLines<'a> {
-    pest_parser::parse(text)
-}
-
-#[cfg(feature = "nom_parser")]
-mod nom_parser;
-
-#[cfg(feature = "nom_parser")]
-pub fn parse(text: &'_ str) -> TodoLines<'_> {
-    nom_parser::parse(text)
+    parser::parse(text)
 }
