@@ -1,4 +1,5 @@
 #![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
+#[macro_use]
 extern crate pest_derive;
 
 mod parser;
