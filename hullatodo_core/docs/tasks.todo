@@ -1,4 +1,4 @@
  ✔ find a suitable todo text format @done(20-05-22 10:37)
  ☐ find out how to sync a text file using holochain
  ☐ check out the [holo wiki|https://blog.holochain.org/h-wiki-is-here-take-ownership-of-your-collective-knowledge/] project
- ☐ find a file change watchdog for Rust
+ ✔ find a file change watchdog for Rust @done(20-05-26 16:21)
