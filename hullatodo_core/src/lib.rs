@@ -1,3 +1,4 @@
+#![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
 #[cfg(test)]
 mod tests {
     #[test]
@@ -25,46 +26,67 @@ struct FileNode {
 }
 
 trait FilePool {
-    fn to_file_node<P: AsRef<Path>>(&mut self, path: P) -> Option<&mut FileNode>;
+    fn to_file_node(&mut self, path: &Path) -> Result<&mut FileNode>;
 }
 
 struct VecFilePool {
-    files: Vec<FileNode>
+    file_nodes: Vec<FileNode>
+}
+
+fn canonicalize(path: &Path) -> Result<String> {
+    Ok(
+        path.canonicalize()?
+            .to_str().expect("invalid UTF-8")
+            .to_string()
+    )
 }
 
 impl FilePool for VecFilePool {
-    fn to_file_node<P: AsRef<Path>>(&mut self, path: P) -> Option<&mut FileNode> {
-        let path_str = path.as_ref().to_str()?.to_string();
+    fn to_file_node(&mut self, path: &Path) -> Result<&mut FileNode> {
+        let path_str = canonicalize(path)?;
 
-        if let Some(i) = (0..self.files.len()).find(|&i| self.files[i].path == path_str) {
-            Some(&mut self.files[i])
+        if let Some(i) = (0..self.file_nodes.len()).find(|&i| self.file_nodes[i].path == path_str) {
+            Ok(&mut self.file_nodes[i])
         } else {
-            let node = FileNode { path: path_str, text: String::new() };
-            self.files.push(node);
-            Some(self.files.last_mut().unwrap())
+            self.file_nodes.push(FileNode { path: path_str, text: String::new() });
+            Ok(self.file_nodes.last_mut().unwrap())
         }
     }
 }
 
 lazy_static! {
-    static ref FILES: Mutex<VecFilePool> = Mutex::new(VecFilePool { files: vec![] });
+    static ref FILES: Mutex<VecFilePool> = Mutex::new(VecFilePool { file_nodes: vec![] });
 }
 
-pub fn parse_todo_file<'a, P: AsRef<Path>>(path: P) -> Result<hullatodo_txt::TodoLines<'a>> {
+fn update_file_node<F>(path: &Path, f: F) -> Result<usize> 
+    where F: FnOnce(&mut FileNode) -> Result<usize> {
+    let mut pool = FILES
+        .lock()
+        .unwrap();
 
-    let mut file = File::open(path.as_ref())?;
+    let file_node = pool.to_file_node(path)?;
+    f(file_node)
+}
+
+pub fn parse_todo_file<'a>(path: &Path) -> Result<hullatodo_txt::TodoLines<'a>> {
+
+    let mut file = File::open(path)?;
     let file_len = file.metadata()?.len();
+    // NOTE: the + 1 is to avoid reallocation when the string reaches capacity
+    let mut buffer = String::with_capacity(file_len as usize + 1);
+    file.read_to_string(&mut buffer)?;
 
-    let file_node = FILES.lock().unwrap().to_file_node(path.as_ref()).unwrap();
+    update_file_node(path, |file_node: &mut FileNode|{
+        file_node.text = buffer;
+        Ok(0)
+    })?;
 
-    let mut bytes = Vec::with_capacity(file_len as usize + 1);
-    file.read_to_end(&mut bytes)?;
-    file_node.text = String::from_utf8(bytes).unwrap();
-
-    Ok(parse_todo_str(file_node.text.as_str()))
+    // let slice = file_node.text.as_str();
+    // Ok(parse_todo_str(slice))
+    Ok(vec![])
 }
 
-pub fn parse_todo_str(text: &'_ str) -> hullatodo_txt::TodoLines<'_> {
+pub fn parse_todo_str<'a>(text: &'a str) -> hullatodo_txt::TodoLines {
     hullatodo_txt::parse(text)
 }
 
